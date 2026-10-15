@@ -18,11 +18,11 @@ insert into public.app_config (invite_code, timezone, threshold)
 values ('HECHOS-1-8', 'America/Lima', 0.6)
 on conflict (id) do nothing;
 
--- Miembros del grupo
+-- Miembros del grupo: cada uno es un apóstol (anónimo, no se puede cambiar)
 create table if not exists public.profiles (
   id         uuid primary key references auth.users on delete cascade,
-  name       text not null check (char_length(name) between 1 and 40),
-  color      text not null default '#f6c453' check (color ~ '^#[0-9a-fA-F]{6}$'),
+  apostle    text unique check (apostle in ('pedro','andres','santiago_mayor','juan','felipe','bartolome',
+                                            'tomas','mateo','santiago_menor','tadeo','simon','pablo')),
   created_at timestamptz not null default now()
 );
 
@@ -47,7 +47,7 @@ $$;
 
 create or replace function public.is_member()
 returns boolean language sql stable security definer set search_path = public as $$
-  select exists (select 1 from profiles where id = auth.uid())
+  select exists (select 1 from profiles where id = auth.uid() and apostle is not null)
 $$;
 
 -- Reglas de acceso
@@ -57,10 +57,6 @@ alter table public.entries  enable row level security;
 drop policy if exists "ver miembros" on public.profiles;
 create policy "ver miembros" on public.profiles
   for select to authenticated using (id = auth.uid() or public.is_member());
-
-drop policy if exists "editar mi perfil" on public.profiles;
-create policy "editar mi perfil" on public.profiles
-  for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
 drop policy if exists "ver devocionales" on public.entries;
 create policy "ver devocionales" on public.entries
@@ -78,23 +74,44 @@ create policy "editar hoy" on public.entries
   using (user_id = auth.uid() and day = public.group_today())
   with check (user_id = auth.uid() and day = public.group_today());
 
--- Unirse al grupo con el código de invitación
-create or replace function public.join_group(p_code text, p_name text, p_color text)
+-- Unirse al grupo con el código de invitación eligiendo un apóstol
+create or replace function public.join_group(p_code text, p_apostle text)
 returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_exists  boolean := false;
+  v_current text;
 begin
   if auth.uid() is null then
     raise exception 'No has iniciado sesión';
   end if;
-  if p_code is distinct from (select invite_code from app_config where id = 1) then
+
+  select true, apostle into v_exists, v_current from profiles where id = auth.uid();
+  if v_current is not null then
+    raise exception 'Ya elegiste a tu apóstol';
+  end if;
+
+  if not coalesce(v_exists, false)
+     and p_code is distinct from (select invite_code from app_config where id = 1) then
     raise exception 'Código de invitación incorrecto';
   end if;
-  insert into profiles (id, name, color)
-  values (auth.uid(), trim(p_name), p_color)
-  on conflict (id) do update set name = excluded.name, color = excluded.color;
+
+  if coalesce(v_exists, false) then
+    update profiles set apostle = p_apostle where id = auth.uid();
+  else
+    insert into profiles (id, apostle) values (auth.uid(), p_apostle);
+  end if;
+exception
+  when unique_violation then raise exception 'Ese apóstol ya fue elegido';
+  when check_violation then raise exception 'Apóstol no válido';
 end;
 $$;
 
--- Todo lo que necesita el mapa, en una sola llamada (evita el límite de 1000 filas)
+-- Qué apóstoles ya están tomados (sin revelar quién los tomó)
+create or replace function public.taken_apostles()
+returns text[] language sql stable security definer set search_path = public as $$
+  select coalesce(array_agg(apostle), '{}') from profiles where apostle is not null
+$$;
+
 create or replace function public.game_state()
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare
@@ -108,10 +125,10 @@ begin
     'threshold', (select threshold from app_config where id = 1),
     'members', (
       select coalesce(jsonb_agg(jsonb_build_object(
-        'id', id, 'name', name, 'color', color,
+        'id', id, 'apostle', apostle,
         'join_day', (created_at at time zone tz)::date
       ) order by created_at), '[]'::jsonb)
-      from profiles
+      from profiles where apostle is not null
     ),
     'entries', (
       select coalesce(jsonb_object_agg(user_id, days), '{}'::jsonb)
@@ -121,7 +138,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.group_today(), public.is_member(),
-  public.join_group(text, text, text), public.game_state() from anon, public;
-grant execute on function public.group_today(), public.is_member(),
-  public.join_group(text, text, text), public.game_state() to authenticated;
+revoke execute on function public.group_today(), public.is_member(), public.taken_apostles(),
+  public.join_group(text, text), public.game_state() from anon, public;
+grant execute on function public.group_today(), public.is_member(), public.taken_apostles(),
+  public.join_group(text, text), public.game_state() to authenticated;

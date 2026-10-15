@@ -36,15 +36,16 @@ export async function signOut() {
 }
 
 export async function joinGroup(_: FormState, fd: FormData): Promise<FormState> {
-  const name = str(fd, "name");
-  if (!name) return { error: "Escribe tu nombre." };
+  const apostle = str(fd, "apostle");
+  if (!apostle) return { error: "Elige a tu apóstol." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("join_group", {
-    p_code: str(fd, "code"),
-    p_name: name.slice(0, 40),
-    p_color: str(fd, "color") || "#f6c453",
-  });
-  if (error) return { error: error.message.includes("Código") ? "Ese código de invitación no es correcto." : error.message };
+  const { error } = await supabase.rpc("join_group", { p_code: str(fd, "code"), p_apostle: apostle });
+  if (error) {
+    if (error.message.includes("Código")) return { error: "Ese código de invitación no es correcto." };
+    if (error.message.includes("ya fue elegido")) return { error: "Alguien acaba de elegir ese apóstol. Escoge otro." };
+    if (error.message.includes("Ya elegiste")) redirect("/");
+    return { error: error.message };
+  }
   redirect("/");
 }
 

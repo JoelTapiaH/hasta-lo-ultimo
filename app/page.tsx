@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, computeGame, formatDay, memberStreak, type GameState } from "@/lib/game";
 import { COUNTRIES } from "@/lib/world";
+import { APOSTLES, apostle } from "@/lib/apostles";
 import WorldMap from "@/components/WorldMap";
 import { EntryForm } from "@/components/Forms";
 import { signOut } from "./actions";
@@ -15,8 +16,9 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
-  if (!me) redirect("/unirse");
+  const { data: me } = await supabase.from("profiles").select("apostle").eq("id", user.id).maybeSingle();
+  const myApostle = apostle(me?.apostle);
+  if (!myApostle) redirect("/unirse");
 
   const { data: state, error } = await supabase.rpc("game_state");
   if (error || !state) throw new Error(error?.message ?? "No se pudo cargar el juego");
@@ -41,9 +43,14 @@ export default async function Home() {
   const last14 = game.days.slice(-14);
 
   const feedDays = [...new Set(recent.map((e) => e.day))];
-  const ranking = [...s.members]
-    .map((m) => ({ ...m, streak: memberStreak(s.entries[m.id], s.today), total: s.entries[m.id]?.length ?? 0, today: s.entries[m.id]?.includes(s.today) }))
-    .sort((a, b) => b.streak - a.streak || b.total - a.total);
+  const byApostle = new Map(s.members.map((m) => [m.apostle, m]));
+  const twelve = APOSTLES.map((a) => {
+    const m = byApostle.get(a.id);
+    return { ...a, member: m, streak: m ? memberStreak(s.entries[m.id], s.today) : 0, today: m ? s.entries[m.id]?.includes(s.today) : false };
+  });
+  const doneToday = twelve.filter((a) => a.today);
+  const pendingToday = twelve.filter((a) => a.member && !a.today);
+  const free = twelve.filter((a) => !a.member);
 
   return (
     <main className="page">
@@ -52,9 +59,14 @@ export default async function Home() {
           <p className="eyebrow">Hechos 1:8</p>
           <h1>Hasta lo último de la tierra</h1>
         </div>
-        <form action={signOut}>
-          <button className="link">Salir</button>
-        </form>
+        <div className="me">
+          <span className="me-badge" style={{ borderColor: myApostle.color }}>
+            {myApostle.emoji} Eres <strong style={{ color: myApostle.color }}>{myApostle.name}</strong>
+          </span>
+          <form action={signOut}>
+            <button className="link">Salir</button>
+          </form>
+        </div>
       </header>
 
       <section className="stats">
@@ -99,17 +111,10 @@ export default async function Home() {
         </section>
 
         <section className="card">
-          <h2>La célula</h2>
-          <ul className="ranking">
-            {ranking.map((m) => (
-              <li key={m.id}>
-                <i className="avatar" style={{ background: m.color }}>{m.name[0]?.toUpperCase()}</i>
-                <span className="name">{m.name}{m.id === user.id && " (tú)"}</span>
-                <span className={m.today ? "check on" : "check"}>{m.today ? "✓ hoy" : "pendiente"}</span>
-                <span className="streak">🔥 {m.streak}</span>
-              </li>
-            ))}
-          </ul>
+          <h2>Los doce</h2>
+          <TwelveGroup title={`Ya encendieron su luz hoy (${doneToday.length})`} items={doneToday} status="done" />
+          <TwelveGroup title={`Faltan hoy (${pendingToday.length})`} items={pendingToday} status="pending" />
+          {free.length > 0 && <TwelveGroup title={`Sin elegir (${free.length})`} items={free} status="free" />}
         </section>
       </div>
 
@@ -120,11 +125,11 @@ export default async function Home() {
           <div key={day}>
             <h3 className="feed-day">{day === s.today ? "Hoy" : formatDay(day)}</h3>
             {recent.filter((e) => e.day === day).map((e) => {
-              const m = members.get(e.user_id);
+              const a = apostle(members.get(e.user_id)?.apostle);
               return (
-                <article key={e.id} className="entry" style={{ borderColor: m?.color }}>
+                <article key={e.id} className="entry" style={{ borderColor: a?.color }}>
                   <header>
-                    <strong style={{ color: m?.color }}>{m?.name ?? "—"}</strong>
+                    <strong style={{ color: a?.color }}>{a ? `${a.emoji} ${a.name}` : "—"}</strong>
                     <span className="passage">{e.passage}</span>
                   </header>
                   <p>{e.learning}</p>
@@ -135,5 +140,27 @@ export default async function Home() {
         ))}
       </section>
     </main>
+  );
+}
+
+type TwelveItem = (typeof APOSTLES)[number] & { streak: number };
+
+function TwelveGroup({ title, items, status }: { title: string; items: TwelveItem[]; status: "done" | "pending" | "free" }) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <h3 className="feed-day">{title}</h3>
+      <ul className="ranking">
+        {items.map((a) => (
+          <li key={a.id} className={status}>
+            <i className="avatar" style={{ background: status === "free" ? undefined : a.color }}>{a.emoji}</i>
+            <span className="name">{a.name}</span>
+            {status === "done" && <span className="check on">✓ hoy</span>}
+            {status === "pending" && <span className="check">pendiente</span>}
+            {status !== "free" && <span className="streak">🔥 {a.streak}</span>}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

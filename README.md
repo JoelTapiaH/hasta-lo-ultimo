@@ -12,6 +12,7 @@ App web para que la célula registre su devocional diario y conquiste el mapa de
 - Si un día termina **sin** llegar al 60%, **el último país conquistado se apaga** (queda gris ceniza) y hay que reconquistarlo.
 - Solo se puede registrar el devocional **del día de hoy** (no se pueden rellenar días pasados).
 - Hay rachas personales 🔥 y del grupo.
+- **Los doce:** cada miembro elige uno de los 12 apóstoles (Pedro, Andrés, Santiago el Mayor, Juan, Felipe, Bartolomé, Tomás, Mateo, Santiago el Menor, Tadeo, Simón el Zelote y **Pablo** como el 12º). Nadie ve nombres reales, solo el apóstol. Los ya elegidos aparecen bloqueados y **una vez elegido no se puede cambiar**. Máximo 12 miembros.
 
 ## Configuración (una sola vez, ~10 minutos)
 
@@ -38,6 +39,10 @@ Abre http://localhost:3000
 2. En https://vercel.com → *Add New Project* → importa el repositorio.
 3. Agrega las variables `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 4. Comparte el link y el código de invitación con la célula.
+
+### Si ya tenías la base de datos antes de los apóstoles
+
+Corre también `supabase/002_apostoles.sql` en el SQL Editor. Quien ya estaba registrado tendrá que elegir su apóstol al entrar (borra los nombres reales que había).
 
 ## Cambiar reglas después
 

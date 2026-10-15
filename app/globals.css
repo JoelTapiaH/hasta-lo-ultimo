@@ -124,3 +124,29 @@ input:focus, textarea:focus { outline: 2px solid var(--gold); outline-offset: 1p
 
 .center { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
 .narrow { width: min(420px, 100%); display: flex; flex-direction: column; gap: .75rem; }
+
+/* ---------- Apóstoles ---------- */
+.me { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; }
+.me-badge { border: 1px solid; border-radius: 99px; padding: .3rem .75rem; font-size: .85rem; background: var(--panel); }
+.small { font-size: .82rem; margin: 0; }
+.wide { width: min(640px, 100%); }
+.apostles { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; }
+.apostles legend { font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
+.apostle-pick {
+  position: relative; flex-direction: column; align-items: center; text-align: center; gap: .15rem;
+  padding: .7rem .5rem; border-radius: 14px; border: 1px solid var(--line); background: var(--panel-2);
+  color: var(--text); cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.apostle-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.apostle-pick .emoji { font-size: 1.6rem; }
+.apostle-pick .apostle-name { font-weight: 600; font-size: .9rem; }
+.apostle-pick .apostle-meta { font-size: .72rem; color: var(--muted); }
+.apostle-pick:hover:not(.taken) { border-color: var(--c); transform: translateY(-2px); }
+.apostle-pick:has(input:checked) { border-color: var(--c); box-shadow: 0 0 0 2px var(--c), 0 0 18px color-mix(in srgb, var(--c) 45%, transparent); }
+.apostle-pick:has(input:focus-visible) { outline: 2px solid var(--gold); outline-offset: 2px; }
+.apostle-pick.taken { opacity: .35; cursor: not-allowed; filter: grayscale(1); }
+.apostle-pick.taken input { cursor: not-allowed; }
+.ranking li.done { box-shadow: inset 3px 0 0 var(--gold); }
+.ranking li.free { opacity: .45; }
+.ranking li.free .avatar { background: var(--line); }
+.ranking .feed-day { margin-top: .75rem; }

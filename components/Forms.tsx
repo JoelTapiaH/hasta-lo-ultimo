@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { joinGroup, saveEntry, signIn, signUp, type FormState } from "@/app/actions";
+import { APOSTLES } from "@/lib/apostles";
 
 function Feedback({ state }: { state: FormState }) {
   if (state?.error) return <p className="feedback error">{state.error}</p>;
@@ -36,30 +37,38 @@ export function AuthForm() {
   );
 }
 
-export const COLORS = ["#f6c453", "#ff8a5b", "#ff5d8f", "#c77dff", "#5e9bff", "#3ddbd9", "#6fdc6f", "#f2f2f2"];
-
-export function JoinForm() {
+export function JoinForm({ taken, needsCode }: { taken: string[]; needsCode: boolean }) {
   const [state, action, pending] = useActionState(joinGroup, undefined);
+  const [choice, setChoice] = useState<string>("");
+  const chosen = APOSTLES.find((a) => a.id === choice);
+
   return (
     <form action={action} className="stack">
-      <label>
-        Tu nombre
-        <input name="name" required maxLength={40} placeholder="Como te conocen en la célula" />
-      </label>
-      <fieldset className="colors">
-        <legend>Tu color</legend>
-        {COLORS.map((c, i) => (
-          <label key={c} className="swatch" style={{ background: c }}>
-            <input type="radio" name="color" value={c} defaultChecked={i === 0} aria-label={c} />
-          </label>
-        ))}
+      <fieldset className="apostles">
+        <legend>Elige tu apóstol</legend>
+        {APOSTLES.map((a, i) => {
+          const isTaken = taken.includes(a.id);
+          return (
+            <label key={a.id} className={`apostle-pick${isTaken ? " taken" : ""}`} style={{ "--c": a.color } as React.CSSProperties}>
+              <input type="radio" name="apostle" value={a.id} disabled={isTaken} required onChange={() => setChoice(a.id)} />
+              <span className="emoji" aria-hidden>{a.emoji}</span>
+              <span className="apostle-name">{a.name}</span>
+              <span className="apostle-meta">{isTaken ? "Ya elegido" : `#${i + 1}`}</span>
+            </label>
+          );
+        })}
       </fieldset>
-      <label>
-        Código de invitación
-        <input name="code" required placeholder="Te lo da el líder del grupo" />
-      </label>
-      <button className="btn" disabled={pending}>
-        {pending ? "…" : "Unirme a la misión"}
+      {needsCode && (
+        <label>
+          Código de invitación
+          <input name="code" required placeholder="Te lo da el líder del grupo" />
+        </label>
+      )}
+      <p className="muted small">
+        Nadie sabrá quién eres: el grupo solo verá a tu apóstol. <strong>Una vez elegido no se puede cambiar.</strong>
+      </p>
+      <button className="btn" disabled={pending || !chosen}>
+        {pending ? "…" : chosen ? `Ser ${chosen.name} ${chosen.emoji}` : "Elige un apóstol"}
       </button>
       <Feedback state={state} />
     </form>

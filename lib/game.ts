@@ -4,7 +4,7 @@
 // - Cada día cerrado que NO llega al mínimo, el último país conquistado se apaga.
 // - El día de hoy cuenta en cuanto se alcanza el mínimo; si no, aún no castiga.
 
-export type Member = { id: string; name: string; color: string; join_day: string };
+export type Member = { id: string; apostle: string; join_day: string };
 
 export type GameState = {
   today: string;
