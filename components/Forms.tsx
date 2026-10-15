@@ -19,8 +19,8 @@ export function AuthForm() {
   return (
     <form action={mode === "in" ? inAction : upAction} className="stack">
       <label>
-        Correo
-        <input name="email" type="email" required autoComplete="email" />
+        Nombre de usuario
+        <input name="username" required maxLength={40} autoComplete="username" autoCapitalize="none" placeholder="Ej. joel" />
       </label>
       <label>
         Contraseña
@@ -30,6 +30,7 @@ export function AuthForm() {
         {pending ? "…" : mode === "in" ? "Entrar" : "Crear cuenta"}
       </button>
       <Feedback state={mode === "in" ? inState : upState} />
+      {mode === "up" && <p className="muted small">Tu nombre de usuario es solo para entrar. El grupo solo verá a tu apóstol.</p>}
       <button type="button" className="link" onClick={() => setMode(mode === "in" ? "up" : "in")}>
         {mode === "in" ? "¿Primera vez? Crea tu cuenta" : "Ya tengo cuenta"}
       </button>

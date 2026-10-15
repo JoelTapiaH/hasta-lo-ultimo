@@ -21,7 +21,7 @@ App web para que la célula registre su devocional diario y conquiste el mapa de
 1. Crea una cuenta en https://supabase.com y un proyecto nuevo.
 2. Abre `supabase/schema.sql`, si quieres, cambia el código de invitación `HECHOS-1-8` por otro (la zona horaria ya está en `America/Lima`).
 3. En Supabase ve a **SQL Editor**, pega todo el archivo y dale **Run**.
-4. En **Authentication → Sign In / Providers → Email** puedes desactivar **Confirm email** para que tus amigos entren sin confirmar el correo (más fácil). Si lo dejas activo, configura en **Authentication → URL Configuration** el *Site URL* con la dirección de tu app.
+4. **Obligatorio:** en **Authentication → Sign In / Providers → Email** desactiva **Confirm email** y guarda. Tus amigos se registran solo con nombre de usuario y contraseña (sin correo).
 
 ### 2. Correr la app en tu compu
 

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -9,23 +8,39 @@ export type FormState = { error?: string; message?: string } | undefined;
 
 const str = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
 
+// Supabase exige un correo: el nombre de usuario se convierte en uno interno que nadie ve.
+// "José Pérez" -> jose-perez@usuarios.hasta-lo-ultimo.app
+function usernameToEmail(name: string): string | null {
+  const slug = name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return slug ? `${slug}@usuarios.hasta-lo-ultimo.app` : null;
+}
+
 export async function signIn(_: FormState, fd: FormData): Promise<FormState> {
+  const email = usernameToEmail(str(fd, "username"));
+  if (!email) return { error: "Escribe tu nombre de usuario." };
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email: str(fd, "email"), password: str(fd, "password") });
-  if (error) return { error: "Correo o contraseña incorrectos." };
+  const { error } = await supabase.auth.signInWithPassword({ email, password: str(fd, "password") });
+  if (error) return { error: "Nombre o contraseña incorrectos." };
   redirect("/");
 }
 
 export async function signUp(_: FormState, fd: FormData): Promise<FormState> {
+  const email = usernameToEmail(str(fd, "username"));
+  if (!email) return { error: "Usa letras o números en tu nombre de usuario." };
   const supabase = await createClient();
-  const origin = (await headers()).get("origin");
-  const { data, error } = await supabase.auth.signUp({
-    email: str(fd, "email"),
-    password: str(fd, "password"),
-    options: { emailRedirectTo: `${origin}/auth/confirm` },
-  });
-  if (error) return { error: error.message };
-  if (!data.session) return { message: "Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve aquí." };
+  const { data, error } = await supabase.auth.signUp({ email, password: str(fd, "password") });
+  if (error) {
+    if (/registered|exists/i.test(error.message)) return { error: "Ese nombre ya está en uso. Prueba con otro." };
+    if (/password/i.test(error.message)) return { error: "La contraseña debe tener al menos 6 caracteres." };
+    return { error: error.message };
+  }
+  if (!data.session) return { error: "Falta desactivar \"Confirm email\" en Supabase. Avísale al líder." };
   redirect("/unirse");
 }
 
